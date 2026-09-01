@@ -214,13 +214,13 @@ docker pull wellblink/sub2api-autoreset:latest
 也可以固定使用某个版本，避免 `latest` 更新后发生变化：
 
 ```bash
-docker pull wellblink/sub2api-autoreset:1.0.1
+docker pull wellblink/sub2api-autoreset:1.0.2
 ```
 
 然后把 Compose 中的镜像改成对应版本：
 
 ```yaml
-image: wellblink/sub2api-autoreset:1.0.1
+image: wellblink/sub2api-autoreset:1.0.2
 ```
 
 镜像支持：
