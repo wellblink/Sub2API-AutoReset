@@ -22,7 +22,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       SUB2API_BASE_URL: http://sub2api:8080/api/v1
       SUB2API_ADMIN_API_KEY_FILE: /run/secrets/sub2api_admin_api_key
-      QUOTA_SYNC_LISTEN: :8090
+      QUOTA_SYNC_LISTEN: ":8090"
       QUOTA_SYNC_STATE_PATH: /data/state.json
       DATABASE_HOST: postgres
       DATABASE_PORT: "5432"
