@@ -2,7 +2,7 @@
 
 Sub2API-AutoReset 是一个配合 [Sub2API](https://github.com/Wei-Shaw/sub2api) 使用的自动重置服务。
 
-它会监听 OpenAI OAuth 上游账号的 7 天用量。当系统确认上游额度被官方工作人员从后台重置后，可以自动重置指定下游用户的订阅额度。
+它会监听 OpenAI OAuth 上游账号的 7 天用量。当系统确认上游额度被tibo从后台重置后，可以自动重置指定下游用户的订阅额度。
 
 本项目单独运行，不修改 Sub2API 镜像。以后正常更新 Sub2API，不会覆盖自动重置服务的配置和运行记录。
 
