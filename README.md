@@ -214,13 +214,13 @@ docker pull wellblink/sub2api-autoreset:latest
 也可以固定使用某个版本，避免 `latest` 更新后发生变化：
 
 ```bash
-docker pull wellblink/sub2api-autoreset:1.0.0
+docker pull wellblink/sub2api-autoreset:1.0.1
 ```
 
 然后把 Compose 中的镜像改成对应版本：
 
 ```yaml
-image: wellblink/sub2api-autoreset:1.0.0
+image: wellblink/sub2api-autoreset:1.0.1
 ```
 
 镜像支持：
@@ -262,6 +262,18 @@ build:
 ```
 
 源码地址：<https://github.com/wellblink/Sub2API-AutoReset>
+
+### 源码目录
+
+```text
+Sub2API-AutoReset/
+├── cmd/sub2api-autoreset/   程序源码、管理页面和测试
+├── deploy/                  Compose、Nginx 和自定义页面示例
+├── Dockerfile              镜像构建文件
+├── go.mod / go.sum          Go 依赖
+├── README.md                中文使用说明
+└── LICENSE                  MIT 许可证
+```
 
 ## 把管理页面嵌入 Sub2API
 
