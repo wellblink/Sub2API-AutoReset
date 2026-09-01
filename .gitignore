@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+data/
+secrets/
+backups/
+*.log
+*.tmp
+*.bak
+state.json
+coverage.out
+quota-sync

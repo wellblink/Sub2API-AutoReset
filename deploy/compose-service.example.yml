@@ -1,0 +1,60 @@
+# 将此服务合并到现有 Sub2API 的 docker-compose.yml。
+# 本文件不是独立 Compose：它依赖已有的 sub2api、postgres、redis 服务
+# 和 sub2api-network 网络。
+
+services:
+  quota-sync:
+    image: wellblink/sub2api-autoreset:latest
+    container_name: sub2api-quota-sync
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "127.0.0.1:${QUOTA_SYNC_PORT:-8091}:8090"
+    volumes:
+      - ./quota-sync/data:/data
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SUB2API_BASE_URL: http://sub2api:8080/api/v1
+      SUB2API_ADMIN_API_KEY_FILE: /run/secrets/sub2api_admin_api_key
+      QUOTA_SYNC_LISTEN: :8090
+      QUOTA_SYNC_STATE_PATH: /data/state.json
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: ${POSTGRES_USER:-sub2api}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DATABASE_DBNAME: ${POSTGRES_DB:-sub2api}
+      DATABASE_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_USERNAME: ${REDIS_USERNAME:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLE_TLS: ${REDIS_ENABLE_TLS:-false}
+    secrets:
+      - sub2api_admin_api_key
+    depends_on:
+      sub2api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sub2api-network
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/quota-sync", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# 合并到现有 Compose 文件的顶层 secrets；不要提交此文件指向的真实内容。
+secrets:
+  sub2api_admin_api_key:
+    file: ./quota-sync/secrets/sub2api_admin_api_key
