@@ -78,9 +78,9 @@ chmod 700 quota-sync/data quota-sync/secrets
 
 `quota-sync/data` 用于保存自动重置设置、账号映射、通知设置和运行记录。
 
-### 第三步：保存管理员 API Key
+### 第三步（可选）：保存初始管理员 API Key
 
-把下面命令中的内容替换为刚才生成的管理员 API Key：
+如果希望容器启动后就能立即读取账号，可以把下面命令中的内容替换为刚才生成的管理员 API Key。也可以跳过这一步，先启动容器，再在嵌入的“自动重置”页面中填写并保存。
 
 ```bash
 printf '%s' '在这里填写管理员 API Key' > quota-sync/secrets/sub2api_admin_api_key
@@ -110,7 +110,7 @@ secrets:
 docker compose up -d --no-deps --force-recreate quota-sync
 ```
 
-管理员 API Key 目前不放在嵌入页面中编辑。页面使用的是当前 Sub2API 管理员登录会话；后台服务使用 Secret 文件里的 Key 调用 Sub2API 管理接口。这样可以避免把能够执行“重置配额”的长期密钥发送到浏览器或保存进前端配置。
+部署时可以先通过 Secret 提供初始 Key；启动后也可以在嵌入的“自动重置”页面中直接修改。页面只显示掩码，保存后后台会立即切换后续请求使用的 Key，不需要重建容器。Key 会随自动重置的 `/data/state.json` 一起持久化，请确保该数据目录只有管理员可以读取。
 
 ### 第四步：修改现有 docker-compose.yml
 
@@ -475,7 +475,7 @@ cp -a quota-sync/data "quota-sync/data.backup.$(date +%Y%m%d-%H%M%S)"
 | --- | --- | --- |
 | `TZ` | `Asia/Shanghai` | 时区，应与 Sub2API 相同 |
 | `SUB2API_BASE_URL` | `http://sub2api:8080/api/v1` | Sub2API 容器内管理接口地址 |
-| `SUB2API_ADMIN_API_KEY_FILE` | `/run/secrets/sub2api_admin_api_key` | 管理员 API Key 文件 |
+| `SUB2API_ADMIN_API_KEY_FILE` | `/run/secrets/sub2api_admin_api_key` | 启动时提供初始管理员 API Key 的文件；也可以启动后在页面中修改 |
 | `QUOTA_SYNC_LISTEN` | `:8090` | 容器内监听地址 |
 | `QUOTA_SYNC_STATE_PATH` | `/data/state.json` | 设置和运行记录文件 |
 | `DATABASE_HOST` | `postgres` | PostgreSQL 服务名或地址 |
@@ -535,7 +535,7 @@ docker compose exec quota-sync wget -qO- http://sub2api:8080/health
 ## 数据和安全
 
 - 不要把 8090 或宿主机的 8091 端口直接开放到公网。
-- 管理员 API Key 应使用 Docker secret，不要直接写进 Compose。
+- 首次部署建议使用 Docker secret 提供管理员 API Key；后续也可以在“自动重置 → 概览与设置”中直接修改。
 - `quota-sync/data/state.json` 包含账号映射、通知凭据和运行记录，请限制文件权限。
 - 不要把 `.env`、`data/`、`secrets/`、数据库备份或日志提交到 Git。
 - 首次开启自动监听前，请再次确认上游账号和下游订阅映射。

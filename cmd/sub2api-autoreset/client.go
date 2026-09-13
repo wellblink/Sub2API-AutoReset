@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -41,6 +42,7 @@ type apiEnvelope struct {
 }
 
 type APIClient struct {
+	keyMu   sync.RWMutex
 	baseURL string
 	apiKey  string
 	http    *http.Client
@@ -49,8 +51,8 @@ type APIClient struct {
 func NewAPIClient(baseURL, apiKey string) (*APIClient, error) {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	apiKey = strings.TrimSpace(apiKey)
-	if baseURL == "" || apiKey == "" {
-		return nil, errors.New("base URL and admin API key are required")
+	if baseURL == "" {
+		return nil, errors.New("base URL is required")
 	}
 	u, err := url.Parse(baseURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -72,6 +74,24 @@ func NewAPIClient(baseURL, apiKey string) (*APIClient, error) {
 	}, nil
 }
 
+func (c *APIClient) SetAPIKey(apiKey string) {
+	if c == nil {
+		return
+	}
+	c.keyMu.Lock()
+	c.apiKey = strings.TrimSpace(apiKey)
+	c.keyMu.Unlock()
+}
+
+func (c *APIClient) APIKey() string {
+	if c == nil {
+		return ""
+	}
+	c.keyMu.RLock()
+	defer c.keyMu.RUnlock()
+	return c.apiKey
+}
+
 func (c *APIClient) do(ctx context.Context, method, path string, body any, out any) error {
 	var reader io.Reader
 	if body != nil {
@@ -86,7 +106,9 @@ func (c *APIClient) do(ctx context.Context, method, path string, body any, out a
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-API-Key", c.apiKey)
+	if apiKey := c.APIKey(); apiKey != "" {
+		req.Header.Set("X-API-Key", apiKey)
+	}
 	req.Header.Set("User-Agent", "sub2api-quota-sync/1.0")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")

@@ -175,6 +175,7 @@ func TestUpdateConfigScopesPreserveOtherTabs(t *testing.T) {
 	cfg.PollIntervalSeconds = 120
 	cfg.BarkGroup = "保留的通知分组"
 	cfg.BarkDeviceKey = "saved-bark-key"
+	cfg.Sub2APIAdminAPIKey = "saved-s2a-admin-key"
 	cfg.Sources = []SourceConfig{{
 		AccountID:             9,
 		AccountName:           "saved-source",
@@ -205,6 +206,11 @@ func TestUpdateConfigScopesPreserveOtherTabs(t *testing.T) {
 	}
 	if afterOverview.BarkGroup != cfg.BarkGroup || afterOverview.BarkDeviceKey != cfg.BarkDeviceKey || len(afterOverview.Sources) != 1 || afterOverview.Sources[0].AccountID != 9 {
 		t.Fatal("overview save overwrote notification or mapping settings")
+	}
+
+	post(`{"scope":"overview","enabled":false,"sub2api_admin_api_key":"new-s2a-admin-key","poll_interval_seconds":240,"confirm_delay_seconds":12,"natural_grace_seconds":180,"max_sample_age_seconds":360}`)
+	if got := store.Config().Sub2APIAdminAPIKey; got != "new-s2a-admin-key" {
+		t.Fatalf("overview save did not update Sub2API admin API key: %q", got)
 	}
 
 	notificationConfig := defaultConfig()

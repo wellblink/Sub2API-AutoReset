@@ -9,6 +9,7 @@ const (
 
 type Config struct {
 	Enabled                    bool           `json:"enabled"`
+	Sub2APIAdminAPIKey         string         `json:"sub2api_admin_api_key,omitempty"`
 	PollIntervalSeconds        int            `json:"poll_interval_seconds"`
 	ConfirmDelaySeconds        int            `json:"confirm_delay_seconds"`
 	NaturalGraceSeconds        int            `json:"natural_grace_seconds"`

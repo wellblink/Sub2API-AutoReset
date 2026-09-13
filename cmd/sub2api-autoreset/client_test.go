@@ -50,6 +50,34 @@ func TestClientListsOnlyParentOAuthAccounts(t *testing.T) {
 	}
 }
 
+func TestClientAPIKeyCanBeChangedAtRuntime(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-API-Key"); got != "new-admin" {
+			t.Fatalf("unexpected API key: %q", got)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "message": "success", "data": map[string]any{"items": []any{}}})
+	}))
+	defer server.Close()
+	client, err := NewAPIClient(server.URL, "old-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.SetAPIKey("new-admin")
+	if _, err := client.ListOAuthAccounts(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClientCanStartWithoutBootstrapAPIKey(t *testing.T) {
+	client, err := NewAPIClient("http://sub2api:8080/api/v1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := client.APIKey(); got != "" {
+		t.Fatalf("expected empty API key, got %q", got)
+	}
+}
+
 func TestClientResetSubscriptionUsesOfficialPayload(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/admin/subscriptions/42/reset-quota" {

@@ -52,6 +52,7 @@ func mergeScopedConfig(existing Config, req configUpdateRequest) (Config, string
 	case configScopeOverview:
 		cfg = existing
 		cfg.Enabled = req.Enabled
+		cfg.Sub2APIAdminAPIKey = req.Sub2APIAdminAPIKey
 		cfg.PollIntervalSeconds = req.PollIntervalSeconds
 		cfg.ConfirmDelaySeconds = req.ConfirmDelaySeconds
 		cfg.NaturalGraceSeconds = req.NaturalGraceSeconds
@@ -92,6 +93,9 @@ func mergeScopedConfig(existing Config, req configUpdateRequest) (Config, string
 			cfg.WeComWebhookURL = existing.WeComWebhookURL
 		}
 	}
+	if scope == configScopeOverview && strings.TrimSpace(cfg.Sub2APIAdminAPIKey) == "" {
+		cfg.Sub2APIAdminAPIKey = existing.Sub2APIAdminAPIKey
+	}
 	return cfg, scope, nil
 }
 
@@ -111,15 +115,25 @@ func main() {
 	statePath := envOr("QUOTA_SYNC_STATE_PATH", "/data/state.json")
 	baseURL := envOr("SUB2API_BASE_URL", "http://sub2api:8080/api/v1")
 	listenAddr := envOr("QUOTA_SYNC_LISTEN", ":8090")
-	apiKey, err := readSecret("SUB2API_ADMIN_API_KEY_FILE", "/run/secrets/sub2api_admin_api_key")
-	if err != nil {
-		logger.Error("read Sub2API admin API key failed", "error", err)
-		os.Exit(1)
-	}
 	store, err := OpenStore(statePath)
 	if err != nil {
 		logger.Error("open state failed", "error", err)
 		os.Exit(1)
+	}
+	apiKey := strings.TrimSpace(store.Config().Sub2APIAdminAPIKey)
+	if apiKey == "" {
+		apiKey, err = readSecret("SUB2API_ADMIN_API_KEY_FILE", "/run/secrets/sub2api_admin_api_key")
+		if err != nil {
+			logger.Warn("Sub2API admin API key is not configured; set it in the embedded page", "error", err)
+			apiKey = ""
+		} else {
+			cfg := store.Config()
+			cfg.Sub2APIAdminAPIKey = apiKey
+			if err := store.SetConfig(cfg); err != nil {
+				logger.Error("persist Sub2API admin API key failed", "error", err)
+				os.Exit(1)
+			}
+		}
 	}
 	client, err := NewAPIClient(baseURL, apiKey)
 	if err != nil {
@@ -257,6 +271,8 @@ type dashboardResponse struct {
 	WeComConfigured    bool            `json:"wecom_webhook_configured"`
 	BarkKeyMasked      string          `json:"bark_device_key_masked,omitempty"`
 	WeComWebhookMasked string          `json:"wecom_webhook_url_masked,omitempty"`
+	Sub2APIKeyConfigured bool           `json:"sub2api_admin_api_key_configured"`
+	Sub2APIKeyMasked     string         `json:"sub2api_admin_api_key_masked,omitempty"`
 	AccountsError      string          `json:"accounts_error,omitempty"`
 	SubsError          string          `json:"subscriptions_error,omitempty"`
 }
@@ -267,11 +283,14 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	state := s.store.Snapshot()
 	barkConfigured := strings.TrimSpace(state.Config.BarkDeviceKey) != ""
 	weComConfigured := strings.TrimSpace(state.Config.WeComWebhookURL) != ""
+	sub2APIKeyConfigured := strings.TrimSpace(state.Config.Sub2APIAdminAPIKey) != ""
+	sub2APIKeyMasked := maskSecret(state.Config.Sub2APIAdminAPIKey)
 	barkMasked := maskSecret(state.Config.BarkDeviceKey)
 	weComMasked := maskWeComWebhookURL(state.Config.WeComWebhookURL)
 	state.Config.BarkDeviceKey = ""
 	state.Config.WeComWebhookURL = ""
-	resp := dashboardResponse{State: state, Runtime: s.engine.Runtime(), BarkKeyConfigured: barkConfigured, WeComConfigured: weComConfigured, BarkKeyMasked: barkMasked, WeComWebhookMasked: weComMasked}
+	state.Config.Sub2APIAdminAPIKey = ""
+	resp := dashboardResponse{State: state, Runtime: s.engine.Runtime(), BarkKeyConfigured: barkConfigured, WeComConfigured: weComConfigured, BarkKeyMasked: barkMasked, WeComWebhookMasked: weComMasked, Sub2APIKeyConfigured: sub2APIKeyConfigured, Sub2APIKeyMasked: sub2APIKeyMasked}
 	var accountErr, subErr error
 	done := make(chan struct{}, 2)
 	go func() {
@@ -363,7 +382,13 @@ func (s *Server) updateConfig(w http.ResponseWriter, r *http.Request) {
 	weComMasked := maskWeComWebhookURL(publicConfig.WeComWebhookURL)
 	publicConfig.BarkDeviceKey = ""
 	publicConfig.WeComWebhookURL = ""
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "scope": scope, "config": publicConfig, "bark_key_configured": barkConfigured, "wecom_webhook_configured": weComConfigured, "bark_device_key_masked": barkMasked, "wecom_webhook_url_masked": weComMasked, "removed_incompatible_targets": removedTargets})
+	sub2APIKeyConfigured := strings.TrimSpace(publicConfig.Sub2APIAdminAPIKey) != ""
+	sub2APIKeyMasked := maskSecret(publicConfig.Sub2APIAdminAPIKey)
+	publicConfig.Sub2APIAdminAPIKey = ""
+	if sub2APIKeyConfigured && s.client != nil {
+		s.client.SetAPIKey(cfg.Sub2APIAdminAPIKey)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "scope": scope, "config": publicConfig, "bark_key_configured": barkConfigured, "wecom_webhook_configured": weComConfigured, "bark_device_key_masked": barkMasked, "wecom_webhook_url_masked": weComMasked, "sub2api_admin_api_key_configured": sub2APIKeyConfigured, "sub2api_admin_api_key_masked": sub2APIKeyMasked, "removed_incompatible_targets": removedTargets})
 }
 
 func reconcileSourceMappings(cfg Config, accounts []Account, subscriptions []Subscription) (Config, int, error) {
