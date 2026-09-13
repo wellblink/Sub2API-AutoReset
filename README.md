@@ -87,6 +87,31 @@ printf '%s' '在这里填写管理员 API Key' > quota-sync/secrets/sub2api_admi
 chmod 600 quota-sync/secrets/sub2api_admin_api_key
 ```
 
+这里的文件名只是示例，管理员 API Key 本身没有写死在镜像或源码中。你可以使用任意文件名和任意一枚有效的 Sub2API 管理员 API Key，只需要同步修改 Compose 里的 Secret 名称和 `SUB2API_ADMIN_API_KEY_FILE` 路径。例如：
+
+```bash
+printf '%s' '你的另一枚管理员 API Key' > quota-sync/secrets/my_s2a_admin_key
+chmod 600 quota-sync/secrets/my_s2a_admin_key
+```
+
+然后将服务配置改为：
+
+```yaml
+environment:
+  SUB2API_ADMIN_API_KEY_FILE: /run/secrets/my_s2a_admin_key
+secrets:
+  my_s2a_admin_key:
+    file: ./quota-sync/secrets/my_s2a_admin_key
+```
+
+修改后重建自动重置容器即可生效：
+
+```bash
+docker compose up -d --no-deps --force-recreate quota-sync
+```
+
+管理员 API Key 目前不放在嵌入页面中编辑。页面使用的是当前 Sub2API 管理员登录会话；后台服务使用 Secret 文件里的 Key 调用 Sub2API 管理接口。这样可以避免把能够执行“重置配额”的长期密钥发送到浏览器或保存进前端配置。
+
 ### 第四步：修改现有 docker-compose.yml
 
 把下面的 `quota-sync` 服务加入现有 `services:` 中。不要再写第二个 `services:`。
